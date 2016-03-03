@@ -33,13 +33,10 @@ install_unison(){
 
 
     sudo su -c "echo \"ln -s /var/lib/boot2docker/unison /usr/bin/unison\" >> /var/lib/boot2docker/bootlocal.sh"
-
     sudo su -c "chmod +x /var/lib/boot2docker/bootlocal.sh"
-
     sync
-    #
+
     sudo /var/lib/boot2docker/bootlocal.sh
-    #unison
 
 }
 

@@ -22,7 +22,13 @@ function check_install(){
     if [ -z "$unison" ]; then
         #TODO
         echo "Unison not found, will install!"
+        $SSH_TO_HOST << EOF
+            wget https://raw.githubusercontent.com/juozapas/docker-machine-unison/master/install-unison.sh
+            chmod +x install-unison.sh
+            ./install-unison.sh
+EOF
     fi
+
 
 }
 
@@ -42,20 +48,23 @@ function start_sync(){
         echo "Starting to sync $1"
 
         local ssh_ops="-i $DOCKER_HOST_SSH_KEY -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null"
-        #TODO learn bash, stop copy
+        #TODO learn bash, stop copying
         unison -batch $1 ssh://docker@$(docker-machine ip $HOST)/$1 \
             -confirmbigdel=false -ignorelocks \
             -sshargs "$ssh_ops" \
             -ignorearchives \
             -dontchmod -perms=0 \
-            -prefer=$1 > /dev/null 2>&1 &
+            -fastercheckUNSAFE=true \
+            -times \
+            -prefer=$1 > $PIDS_FILE_PATH/unison.log 2>&1 &
 
         fswatch -o . | xargs -n1 -I{} unison -batch $1 ssh://docker@$(docker-machine ip $HOST)/$1 \
             -confirmbigdel=false -ignorelocks \
             -sshargs "$ssh_ops" \
             -ignorearchives \
             -dontchmod -perms=0 \
-            -prefer=$1 > /dev/null 2>&1 &
+            -times \
+            -prefer=$1 > $PIDS_FILE_PATH/unison.log 2>&1 &
         save_pid $! $1
     fi
 
@@ -64,8 +73,7 @@ function start_sync(){
 function save_pid(){
     local pid=$(check_if_fswatch_pid_exists ${1})
     if [ -n "$pid" ]; then
-        local replaced=$(echo $2 | sed -e 's/[]\/$*.^|[]/\\&/g')
-        echo $replaced | sed -i.bak "s/\($replaced *= *\).*/\1$1/" $PIDS_FILE
+        echo $2 | sed -e 's/[]\/$*.^|[]/\\&/g' | sed -i.bak "s/\($replaced *= *\).*/\1$1/" $PIDS_FILE
     else
         echo "$2=$1" > $PIDS_FILE
     fi
